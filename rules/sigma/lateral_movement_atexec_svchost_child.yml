@@ -1,0 +1,41 @@
+title: Suspicious Process Execution Spawned via Task Scheduler (atexec-style)
+id: 4f4643d2-7db9-4750-8e9b-f177d4eee3a5
+status: test
+description: |
+    Detects a process creation (Sysmon EventID 1) where cmd.exe is spawned by
+    svchost.exe running the netsvcs service group (the Task Scheduler service
+    host), with output redirected to a randomly-named file under
+    C:\Windows\Temp. This is the forensic signature left by Impacket
+    atexec.py / NetExec's atexec fallback for remote command execution,
+    distinct from a normal interactively-launched cmd.exe.
+references:
+    - https://attack.mitre.org/techniques/T1053/002/
+    - https://attack.mitre.org/techniques/T1569/002/
+author: Detection Lab
+date: 2026-09-12
+tags:
+    - attack.execution
+    - attack.lateral-movement
+    - attack.t1053.002
+    - attack.t1569.002
+logsource:
+    category: process_creation
+    product: windows
+    definition: 'Requires Sysmon (SwiftOnSecurity or equivalent config) with Event ID 1 process creation logging.'
+detection:
+    selection_parent:
+        ParentImage|endswith: '\svchost.exe'
+        ParentCommandLine|contains: 'netsvcs'
+    selection_child:
+        Image|endswith: '\cmd.exe'
+    selection_redirect:
+        CommandLine|contains:
+            - '\Windows\Temp\'
+            - '> '
+    condition: all of selection_*
+falsepositives:
+    - Legitimate scheduled tasks configured to run cmd.exe/batch scripts with
+      output redirected to a log file under Windows\Temp (common in some
+      backup or monitoring agent tasks) - tune by adding a filter on the
+      known task name or CommandLine pattern once identified.
+level: medium

@@ -1,0 +1,20 @@
+{
+  "_comment": "See password_spraying_distributed_failures.kibana-rule.json for why this correlation rule compiles to a native Kibana rule config rather than a KQL string.",
+  "name": "Multiple Account Lockouts in Short Window",
+  "rule_type_id": ".es-query",
+  "params": {
+    "index": ["winlogbeat-*"],
+    "esQuery": "{\"query\":{\"bool\":{\"filter\":[{\"term\":{\"event.code\":\"4740\"}}]}}}",
+    "aggType": "cardinality",
+    "aggField": "winlog.event_data.TargetUserName",
+    "groupBy": "top",
+    "termField": "winlog.event_data.TargetDomainName",
+    "termSize": 5,
+    "timeWindowSize": 15,
+    "timeWindowUnit": "m",
+    "thresholdComparator": ">=",
+    "threshold": [2]
+  },
+  "schedule": { "interval": "5m" },
+  "enabled": true
+}

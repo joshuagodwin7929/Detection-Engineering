@@ -1,0 +1,47 @@
+title: DCSync - Directory Replication Rights Used From Non-DC Source
+id: f96caed1-bc1d-45e4-9297-ac44213764b7
+status: test
+description: |
+    Detects use of the DS-Replication-Get-Changes / Get-Changes-All extended
+    rights (EventID 4662) against the domain naming context. Legitimate use is
+    limited to Domain Controllers and directory-sync services (e.g. Azure AD
+    Connect / Entra Connect). Any other source account exercising this right is
+    consistent with a DCSync credential-dumping attack.
+references:
+    - https://attack.mitre.org/techniques/T1003/006/
+author: Detection Lab
+date: 2026-09-12
+tags:
+    - attack.credential-access
+    - attack.t1003.006
+logsource:
+    product: windows
+    service: security
+    definition: 'Requires Advanced Audit Policy > DS Access > Audit Directory Service Access (Success) and a SACL on the domain root auditing Everyone/All Extended Rights.'
+detection:
+    selection:
+        EventID: 4662
+        Properties|contains:
+            - '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2'  # DS-Replication-Get-Changes
+            - '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'  # DS-Replication-Get-Changes-All
+    filter_known_dcs:
+        SubjectUserName|endswith: '$'
+    filter_known_sync_accounts:
+        # Dated, named allow-list of non-DC accounts intentionally granted
+        # replication rights. Each entry must have a ticket/owner - do not
+        # widen this to a naming-convention pattern (e.g. svc_*), since that
+        # gives an attacker a documented way to name around the filter.
+        # svc_adaudit: added 2026-09-12, tuning exercise (see
+        #   tuning/false_positive_scenarios.md Exercise 2) - placeholder for a
+        #   real AD-auditing/sync tool account.
+        SubjectUserName: 'svc_adaudit'
+    condition: selection and not 1 of filter_*
+falsepositives:
+    - Real Domain Controller machine accounts replicating with each other (excluded
+      by the machine-account filter above, since DC accounts end in $).
+    - Azure AD Connect / Entra Connect sync accounts, or third-party AD-auditing/
+      identity-governance tools intentionally granted replication rights -
+      confirmed via tuning exercise, these are indistinguishable from a DCSync
+      attack at the event level and must be allow-listed by name
+      (filter_known_sync_accounts), not by pattern.
+level: critical

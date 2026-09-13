@@ -1,0 +1,45 @@
+title: Potential Kerberoasting via RC4-Encrypted TGS Request
+id: e6625806-47f2-497b-9918-5b9556c30718
+status: test
+description: |
+    Detects Kerberos service ticket (TGS) requests using RC4 encryption (etype 0x17).
+    Modern domains negotiate AES by default, so an RC4 ticket request for a service
+    account SPN is a strong indicator of a Kerberoasting tool (Rubeus, impacket
+    GetUserSPNs) forcing a downgrade to request a crackable ticket.
+references:
+    - https://attack.mitre.org/techniques/T1558/003/
+author: Detection Lab
+date: 2026-09-12
+tags:
+    - attack.credential-access
+    - attack.t1558.003
+logsource:
+    product: windows
+    service: security
+    definition: 'Requires Advanced Audit Policy > Account Logon > Audit Kerberos Service Ticket Operations (Success) enabled on the DC.'
+detection:
+    selection:
+        EventID: 4769
+        TicketEncryptionType: '0x17'
+    filter_krbtgt:
+        ServiceName: krbtgt
+    filter_machine_accounts:
+        ServiceName|endswith: '$'
+    filter_known_rc4_accounts:
+        # Dated, named allow-list of accounts confirmed RC4-only by design or
+        # by unremediated legacy config. Each entry must have a ticket/reason
+        # and an owner - do not widen this to a wildcard pattern.
+        # svc_sql: added 2026-09-12, tuning exercise (see tuning/false_positive_scenarios.md
+        #   Exercise 1). Remove once msDS-SupportedEncryptionTypes is set to AES-only.
+        ServiceName: 'svc_sql'
+    condition: selection and not 1 of filter_*
+falsepositives:
+    - Legacy applications or older domain members that have not been reconfigured
+      for AES and still legitimately negotiate RC4.
+    - Third-party or appliance service accounts (backup software, scanners) whose
+      msDS-SupportedEncryptionTypes was never set to AES-only.
+    - Any legitimate client authenticating to an inventoried RC4-only service
+      account (see filter_known_rc4_accounts) - confirmed via tuning exercise,
+      this is indistinguishable from an attack at the request level and must
+      be remediated at the account, not just filtered here.
+level: high

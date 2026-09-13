@@ -1,0 +1,30 @@
+title: Potential AS-REP Roasting via Disabled Kerberos Pre-Authentication
+id: c4d35c7e-eee4-41d2-b9ea-86d20e17b61a
+status: test
+description: |
+    Detects Kerberos AS-REQ/AS-REP exchanges (EventID 4768) where the
+    Pre-Authentication Type field is 0, indicating the account has
+    "Do not require Kerberos preauthentication" (DONT_REQ_PREAUTH) set.
+    This lets an attacker request an AS-REP for any such account without
+    valid credentials and crack it offline (AS-REP Roasting).
+references:
+    - https://attack.mitre.org/techniques/T1558/004/
+author: Detection Lab
+date: 2026-09-12
+tags:
+    - attack.credential-access
+    - attack.t1558.004
+logsource:
+    product: windows
+    service: security
+    definition: 'Requires Advanced Audit Policy > Account Logon > Audit Kerberos Authentication Service (Success) enabled on the DC.'
+detection:
+    selection:
+        EventID: 4768
+        PreAuthType: '0'
+    condition: selection
+falsepositives:
+    - Legitimate accounts intentionally configured without pre-auth for interoperability
+      with older or third-party Kerberos clients (rare, should be inventoried and
+      allow-listed by SamAccountName).
+level: high

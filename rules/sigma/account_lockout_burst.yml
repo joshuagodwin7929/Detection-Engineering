@@ -1,0 +1,48 @@
+title: Account Lockout Event (Base)
+name: account_lockout_base
+id: d6cc2d83-7c75-4b5e-b538-8f86ab7a5ba4
+status: test
+description: Base event match for EventID 4740 (account lockout), correlated below to catch lockout bursts.
+author: Detection Lab
+date: 2026-09-12
+logsource:
+    product: windows
+    service: security
+    definition: 'Requires Advanced Audit Policy > Logon/Logoff > Audit Account Lockout (Success), and SCENoApplyLegacyAuditPolicy enabled so Advanced Audit Policy is not silently overridden by the legacy policy.'
+detection:
+    selection:
+        EventID: 4740
+    condition: selection
+level: informational
+---
+title: Multiple Account Lockouts in Short Window
+id: 7a2e6f0d-4a4a-4f1a-9d55-2f8c9b6b1e02
+status: test
+description: |
+    Detects two or more distinct accounts locked out (EventID 4740) within a
+    short window. A single lockout is routine user error; multiple lockouts
+    clustered in time is a corroborating signal for password spraying or
+    brute force, and complements the 4625-based spray detection with a
+    lower-volume, high-confidence secondary signal.
+references:
+    - https://attack.mitre.org/techniques/T1110.003/
+author: Detection Lab
+date: 2026-09-12
+tags:
+    - attack.credential-access
+    - attack.t1110.003
+correlation:
+    type: value_count
+    rules:
+        - account_lockout_base
+    group-by:
+        - TargetDomainName
+    timespan: 15m
+    condition:
+        field: TargetUserName
+        gte: 2
+falsepositives:
+    - Bulk password expiration/reset events (e.g. after a mandated password
+      policy change) causing several users to lock themselves out around the
+      same time independently.
+level: medium

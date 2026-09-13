@@ -1,0 +1,1 @@
+(process.parent.executable.caseless:*\\svchost.exe AND process.parent.command_line:*netsvcs*) AND process.executable.caseless:*\\cmd.exe AND (process.command_line:(*\\Windows\\Temp\\* OR *\>\ *))
