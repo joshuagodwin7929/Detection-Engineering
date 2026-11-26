@@ -32,4 +32,4 @@ This is a correlation rule, so there's no compiled query to compare against. The
 ## Rules that match
 
 - **Kerberoasting:** the deployed query is the compiled query without the `winlog.channel:Security` clause.
-- **AS-REP Roasting:** same as Kerberoasting.
+- **AS-REP Roasting:** the deployed query is the compiled query without the `winlog.channel:Security` clause. The tuned version (v0.3.1) raised an alert in the lab on 26 Nov 2026 at 01:42:07 UTC.

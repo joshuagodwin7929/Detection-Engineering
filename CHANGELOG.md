@@ -50,3 +50,13 @@
   every push and pull request.
 - `rules/elastic/LAB-OVERRIDES.md`: where my deployed lab queries differ
   from the compiled output, and why.
+
+## [v0.3.1] - 2026-11-26
+### Changed
+- AS-REP Roasting rule: added `SessionKeyEncryptionType: '0x17'` to the
+  selection. Normal logons by a pre-auth-disabled account negotiate AES and
+  were causing false positives; the attack tool requests RC4 only. Tested
+  against recorded lab events: the attack still matches, the normal logons
+  don't. A first attempt using `TicketEncryptionType` was rejected because it
+  also removed the attack. Validated as a live alert in Kibana on 26 Nov 2026
+  at 01:42:07 UTC. See tuning/false_positive_scenarios.md, Exercise 3.

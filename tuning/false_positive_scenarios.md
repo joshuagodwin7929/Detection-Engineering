@@ -147,9 +147,80 @@ entry: `svc_adaudit`). Two things this refinement deliberately does *not* do:
 
 ---
 
+## Exercise 3 - AS-REP Roasting rule vs. normal logons by the same account
+
+### Why this rule is vulnerable to FPs
+
+The rule fires on any 4768 with `PreAuthType: 0`. That's every Kerberos logon
+by an account with "Do not require Kerberos preauthentication" set, not just
+an attacker requesting its AS-REP. In my lab that account is `j.jenkins`,
+deliberately left pre-auth-disabled so the attack works.
+
+### What happened
+
+In the November purple team re-test the rule alerted twice when no AS-REP
+Roasting was running. I checked the events behind one of those alerts
+(25 Nov 2026, 23:29:24 UTC): `TargetUserName: j.jenkins`, result `0x0`, a
+successful logon during the password spray. `Get-ADUser j.jenkins -Properties
+DoesNotRequirePreAuth` returned `True`.
+
+### First idea: filter on RC4 ticket encryption (rejected)
+
+Attack tools want an RC4 reply because it's much easier to crack, so I tried
+adding `TicketEncryptionType: 0x17`, the same field the Kerberoasting rule
+uses. In Discover over the attack window (25 Nov, 04:00 to 05:00 UTC) that
+query returned **0 hits**. The attack's 4768 had `TicketEncryptionType: 0x12`
+(AES), like the normal logon. The filter would have removed the attack along
+with the noise.
+
+### Second idea: filter on the session key encryption type (kept)
+
+Expanding the attack event (04:59:35 UTC, from the Kali host) showed why:
+
+| Field | Attack event | Normal `j.jenkins` logon |
+|---|---|---|
+| Ticket Encryption Type | `0x12` (AES) | `0x12` (AES) |
+| Session Encryption Type | `0x17` (RC4) | `0x12` (AES) |
+| Advertized Etypes | RC4-HMAC-NT only | not RC4-only |
+
+The ticket is encrypted with the `krbtgt` key, so the DC uses AES there
+regardless. The part the attacker cracks offline is protected with the user's
+key using the etype the client asked for, and the attack tool asked for RC4
+only. That shows up as `SessionKeyEncryptionType: 0x17`.
+
+Results with `SessionKeyEncryptionType: 0x17` added, against the recorded
+events:
+
+| Window (25 Nov 2026, UTC) | Hits | Meaning |
+|---|---|---|
+| 04:50 to 05:00 (attack) | 3 | The AS-REP ability at 04:59:35, plus Impacket logging in as `j.jenkins` for the Kerberoasting steps at 04:56:00 and 04:58:22 |
+| 23:20 to 23:35 (noise) | 0 | The normal `j.jenkins` logons are gone |
+
+The two Kerberoasting matches aren't false positives: they're Impacket
+authenticating as the pre-auth-disabled account and asking for RC4, which is
+attacker tooling. Kerbrute's successful `j.jenkins` logons during the spray
+negotiated normally and dropped out.
+
+### Refinement applied (v0.3.1)
+
+Added `SessionKeyEncryptionType: '0x17'` to the selection.
+
+Limits:
+
+- Validated as a live alert: after adding the condition to the Kibana rule,
+  I ran the AS-REP ability from Caldera at 01:37:13 UTC on 26 Nov 2026. The DC
+  logged the 4768 at 01:37:48 (`j.jenkins`, from the Kali host, RC4 only,
+  session key `0x17`), and the tuned rule raised an alert at 01:42:07.
+- A tool that asks for AES would get past it. That's harder to crack, but not
+  impossible with a weak password.
+- The real fix is still in the environment: require pre-authentication on
+  every account. Then any `PreAuthType: 0` is suspicious by definition.
+
+---
+
 ## Process note
 
-Both exercises followed the same shape: reproduce the FP for real against the
+All three exercises followed the same shape: reproduce the FP for real against the
 lab (not hypothetically), confirm the rule actually fires on it, then decide
 whether the fix is a rule change, an environment change, or both. That
 decision explicitly favored allow-listing named accounts over loosening field
