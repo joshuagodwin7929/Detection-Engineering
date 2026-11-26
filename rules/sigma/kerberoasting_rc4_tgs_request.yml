@@ -8,8 +8,9 @@ description: |
     GetUserSPNs) forcing a downgrade to request a crackable ticket.
 references:
     - https://attack.mitre.org/techniques/T1558/003/
-author: Detection Lab
+author: Okunnuwa Joshua Godwin
 date: 2026-09-12
+modified: 2026-11-26
 tags:
     - attack.credential-access
     - attack.t1558.003
@@ -25,21 +26,15 @@ detection:
         ServiceName: krbtgt
     filter_machine_accounts:
         ServiceName|endswith: '$'
-    filter_known_rc4_accounts:
-        # Dated, named allow-list of accounts confirmed RC4-only by design or
-        # by unremediated legacy config. Each entry must have a ticket/reason
-        # and an owner - do not widen this to a wildcard pattern.
-        # svc_sql: added 2026-09-12, tuning exercise (see tuning/false_positive_scenarios.md
-        #   Exercise 1). Remove once msDS-SupportedEncryptionTypes is set to AES-only.
-        ServiceName: 'svc_sql'
     condition: selection and not 1 of filter_*
 falsepositives:
     - Legacy applications or older domain members that have not been reconfigured
       for AES and still legitimately negotiate RC4.
     - Third-party or appliance service accounts (backup software, scanners) whose
       msDS-SupportedEncryptionTypes was never set to AES-only.
-    - Any legitimate client authenticating to an inventoried RC4-only service
-      account (see filter_known_rc4_accounts) - confirmed via tuning exercise,
-      this is indistinguishable from an attack at the request level and must
-      be remediated at the account, not just filtered here.
+    - Any legitimate client authenticating to an RC4-only service account. This is
+      indistinguishable from an attack at the request level. Fix it at the account
+      (set msDS-SupportedEncryptionTypes to AES) rather than allow-listing the
+      ServiceName, because an allow-listed account is exactly the one an attacker
+      will roast. See tuning/false_positive_scenarios.md, Exercise 1 update.
 level: high

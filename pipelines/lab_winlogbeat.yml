@@ -1,0 +1,8 @@
+name: Lab Winlogbeat 8.12 field corrections
+priority: 10
+transformations:
+  - id: lab_winlogbeat_field_names
+    type: field_name_mapping
+    mapping:
+      ServiceName: winlog.event_data.ServiceName
+      SubjectUserName: winlog.event_data.SubjectUserName

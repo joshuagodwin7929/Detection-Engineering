@@ -9,8 +9,9 @@ description: |
     consistent with a DCSync credential-dumping attack.
 references:
     - https://attack.mitre.org/techniques/T1003/006/
-author: Detection Lab
+author: Okunnuwa Joshua Godwin
 date: 2026-09-12
+modified: 2026-11-26
 tags:
     - attack.credential-access
     - attack.t1003.006
@@ -22,8 +23,8 @@ detection:
     selection:
         EventID: 4662
         Properties|contains:
-            - '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2'  # DS-Replication-Get-Changes
-            - '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'  # DS-Replication-Get-Changes-All
+            - '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2'  # DS-Replication-Get-Changes-All
+            - '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'  # DS-Replication-Get-Changes
     filter_known_dcs:
         SubjectUserName|endswith: '$'
     filter_known_sync_accounts:

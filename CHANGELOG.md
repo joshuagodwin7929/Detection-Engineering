@@ -25,3 +25,28 @@
 - tuning/false_positive_scenarios.md documenting both exercises, findings,
   and the reasoning behind allow-listing named accounts instead of loosening
   field logic.
+
+## [v0.3.0] - 2026-11-26
+### Changed
+- Kerberoasting rule: removed `filter_known_rc4_accounts`. The allow-listed
+  `svc_sql` account was the account being roasted, so the filter hid the
+  attack. See tuning/false_positive_scenarios.md, Exercise 1 update.
+- Password spraying rule: the base rule now matches EventID 4771 as well as
+  4625. Kerbrute only produces 4771, so the old rule couldn't catch it.
+- Password spraying Kibana config replaced with the version that alerted in
+  the lab on 25 Nov 2026, with its known limitations documented.
+- DCSync rule: fixed swapped comments on the two replication GUIDs.
+- AS-REP Roasting rule: PreAuthType written as a number; added a false
+  positive for normal logons by accounts with pre-auth disabled.
+- All rules: author set to Okunnuwa Joshua Godwin; `modified` dates added.
+- README rewritten with lab validation status for each rule.
+### Added
+- `pipelines/lab_winlogbeat.yml`: maps `ServiceName` and `SubjectUserName`
+  to the field names my Winlogbeat 8.12 actually uses, replacing the manual
+  corrections I used to make after compiling.
+- `scripts/build.sh`: compiles every non-correlation rule, or checks the
+  committed output for drift with `--check`.
+- GitHub Actions workflow running `sigma check` and the drift check on
+  every push and pull request.
+- `rules/elastic/LAB-OVERRIDES.md`: where my deployed lab queries differ
+  from the compiled output, and why.

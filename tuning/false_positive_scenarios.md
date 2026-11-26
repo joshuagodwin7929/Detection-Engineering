@@ -43,7 +43,7 @@ the target account is *known* to be RC4-only. The rule as originally written
 treats every RC4 ticket request as equally suspicious regardless of whether
 RC4 is expected for that specific SPN.
 
-### Refinement applied (v1.1)
+### Refinement applied (v0.2.0)
 
 Two changes, addressing the false positive at both layers:
 
@@ -64,6 +64,33 @@ Two changes, addressing the false positive at both layers:
 See the updated rule for the exact filter; the allow-list is a single
 placeholder entry (`svc_sql`) meant to be replaced with a real, dated
 inventory once more than one legacy account exists.
+
+### Update, November 2026: allow-list removed (v0.3.0)
+
+My purple team re-test showed this refinement was a mistake. `svc_sql` is the
+only Kerberoastable account in my lab, so it's exactly the account an attacker
+roasts. With `svc_sql` allow-listed by `ServiceName`, the rule ignored every
+request for it, legitimate or malicious, and would have stayed silent during
+the very attack it was written for.
+
+The lesson: allow-listing by the *target* of a technique is different from
+allow-listing a known-good *actor*. For Kerberoasting the target is the service
+account, so filtering on `ServiceName` hides the attack along with the noise.
+If a false positive has to be filtered, filter on something that identifies the
+legitimate client (its source IP or account), not on the account being
+requested.
+
+What I did instead:
+
+- Removed `filter_known_rc4_accounts` from the rule.
+- Kept the environment-side fix as the real answer: set
+  `msDS-SupportedEncryptionTypes` on `svc_sql` to AES. Once the account can't
+  issue RC4 tickets, the legitimate false positive disappears and any RC4
+  request for it is suspicious again.
+
+With the allow-list removed, the deployed version of this rule raised an alert
+for the Kerberoasting step of the re-test. See
+[Purple-Team-Automation](https://github.com/joshuagodwin7929/Purple-Team-Automation/blob/main/validation/detection-results.md).
 
 ---
 
@@ -105,7 +132,7 @@ real-world case: a deliberately provisioned, non-DC service account that
 tool becomes a permanent false positive - which is exactly the kind of noise
 that gets an analyst to quietly disable a critical-severity rule.
 
-### Refinement applied (v1.1)
+### Refinement applied (v0.2.0)
 
 Added a `filter_known_sync_accounts` block excluding a documented, dated
 list of accounts that are supposed to hold replication rights (placeholder

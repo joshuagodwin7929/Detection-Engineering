@@ -1,0 +1,31 @@
+name: Validate Sigma rules
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Sigma tooling
+        run: |
+          pip install \
+            sigma-cli==3.1.0 \
+            pySigma==1.5.1 \
+            pySigma-backend-elasticsearch==2.1.1 \
+            pysigma-pipeline-windows==2.0.1
+
+      - name: Check rule syntax and metadata
+        run: sigma check --fail-on-error rules/sigma/
+
+      - name: Check compiled Elastic queries match the Sigma source
+        run: scripts/build.sh --check

@@ -3,7 +3,7 @@ name: account_lockout_base
 id: d6cc2d83-7c75-4b5e-b538-8f86ab7a5ba4
 status: test
 description: Base event match for EventID 4740 (account lockout), correlated below to catch lockout bursts.
-author: Detection Lab
+author: Okunnuwa Joshua Godwin
 date: 2026-09-12
 logsource:
     product: windows
@@ -26,7 +26,7 @@ description: |
     lower-volume, high-confidence secondary signal.
 references:
     - https://attack.mitre.org/techniques/T1110.003/
-author: Detection Lab
+author: Okunnuwa Joshua Godwin
 date: 2026-09-12
 tags:
     - attack.credential-access
