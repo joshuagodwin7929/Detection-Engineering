@@ -1,92 +1,87 @@
-# detection-as-code
+# Detection-Engineering
 
-A small detection-as-code repo built from a personal Active Directory attack/defense
-lab (Elastic Stack + Sysmon/Winlogbeat on a domain-joined Windows 10 host and a
-Server 2022 DC). Every rule here started life as an ad hoc Kibana hunt query
-written *after* running the real attack technique against the lab and confirming
-the telemetry — then formalized into vendor-agnostic Sigma, compiled to
-Elastic/KQL, and tuned against deliberately-generated false positives.
+![Validate Sigma rules](https://github.com/joshuagodwin7929/Detection-Engineering/actions/workflows/validate-rules.yml/badge.svg)
 
-Workflow used throughout the lab: **log first, attack second, hunt third, then
-formalize.** This repo is the "formalize" step.
+By OKUNNUWA JOSHUA GODWIN | [LinkedIn](https://www.linkedin.com/in/okunnuwa-joshua-godwin)
+
+Sigma detections I wrote for Active Directory attacks after running each attack against my own lab: a Windows Server 2022 DC and a Windows 10 client, logging with Sysmon and Winlogbeat into Elastic Stack 8.12.
+
+Every rule here started as a hunt query I wrote after running the real technique and finding its events in Kibana. I then turned it into vendor-neutral Sigma, compiled it to Elastic, and tested it against false positives I created on purpose. My working rule for the lab is **log first, attack second, hunt third, then formalize.** This repo is the formalize step.
+
+## Rules
+
+| Rule | ATT&CK | Data source | Level | Lab validation |
+|---|---|---|---|---|
+| [`kerberoasting_rc4_tgs_request.yml`](rules/sigma/kerberoasting_rc4_tgs_request.yml) | [T1558.003](https://attack.mitre.org/techniques/T1558/003/) Kerberoasting | Security 4769 | High | ✅ Alert, 25 Nov 2026 |
+| [`asrep_roasting_no_preauth.yml`](rules/sigma/asrep_roasting_no_preauth.yml) | [T1558.004](https://attack.mitre.org/techniques/T1558/004/) AS-REP Roasting | Security 4768 | High | ✅ Alert, 25 Nov 2026 |
+| [`password_spraying_distributed_failures.yml`](rules/sigma/password_spraying_distributed_failures.yml) | [T1110.003](https://attack.mitre.org/techniques/T1110/003/) Password Spraying | Security 4625, 4771 (correlation) | Medium | ✅ Alert, 25 Nov 2026 |
+| [`dcsync_replication_rights_abuse.yml`](rules/sigma/dcsync_replication_rights_abuse.yml) | [T1003.006](https://attack.mitre.org/techniques/T1003/006/) DCSync | Security 4662 | Critical | ✅ Alert, 25 Nov 2026 |
+| [`account_lockout_burst.yml`](rules/sigma/account_lockout_burst.yml) | [T1110.003](https://attack.mitre.org/techniques/T1110/003/) (supporting signal) | Security 4740 (correlation) | Medium | Not yet tested |
+| [`lateral_movement_atexec_svchost_child.yml`](rules/sigma/lateral_movement_atexec_svchost_child.yml) | [T1053.002](https://attack.mitre.org/techniques/T1053/002/), [T1569.002](https://attack.mitre.org/techniques/T1569/002/) | Sysmon 1 | Medium | Not yet tested |
+
+"Alert" means the rule was deployed in Kibana and raised a real alert against the attack, run through Caldera in my [Purple-Team-Automation](https://github.com/joshuagodwin7929/Purple-Team-Automation) lab. A search that finds the events doesn't count. I learned that the hard way (see below).
 
 ## Repo layout
 
 ```
-rules/sigma/     Vendor-agnostic Sigma detections (source of truth)
-rules/elastic/   Compiled output: .kql files (plain queries) and
-                 .kibana-rule.json files (native rule config, for
-                 correlation logic Sigma/Lucene can't express as a query string)
-tuning/          Deliberate false-positive generation + rule refinement writeups
-docs/            Supporting notes
-CHANGELOG.md     Version history of the rule set
+rules/sigma/               Sigma rules (the source of truth)
+rules/elastic/             Compiled Elastic output
+  *.kql                    Built from Sigma by scripts/build.sh
+  *.kibana-rule.json       Hand-maintained configs for the two correlation rules
+  LAB-OVERRIDES.md         Where my deployed queries differ, and why
+pipelines/                 Field mappings for my Winlogbeat 8.12 data
+scripts/build.sh           Compiles the rules, or checks them for drift
+tuning/                    False-positive exercises and what I changed
+.github/workflows/         CI that validates every rule on each push
+CHANGELOG.md               Version history
 ```
 
-## Rules → MITRE ATT&CK mapping
+## How the build works
 
-| Rule | ATT&CK Technique | Data Source | Level | Status |
-|---|---|---|---|---|
-| [`kerberoasting_rc4_tgs_request.yml`](rules/sigma/kerberoasting_rc4_tgs_request.yml) | [T1558.003 - Kerberoasting](https://attack.mitre.org/techniques/T1558/003/) | Security 4769 (Kerberos Service Ticket Operations) | High | Tuned (v1.1) |
-| [`asrep_roasting_no_preauth.yml`](rules/sigma/asrep_roasting_no_preauth.yml) | [T1558.004 - AS-REP Roasting](https://attack.mitre.org/techniques/T1558/004/) | Security 4768 (Kerberos Authentication Service) | High | Test |
-| [`password_spraying_distributed_failures.yml`](rules/sigma/password_spraying_distributed_failures.yml) | [T1110.003 - Password Spraying](https://attack.mitre.org/techniques/T1110/003/) | Security 4625 (Failed Logon), correlation | Medium | Test |
-| [`account_lockout_burst.yml`](rules/sigma/account_lockout_burst.yml) | [T1110.003 - Password Spraying](https://attack.mitre.org/techniques/T1110/003/) (corroborating signal) | Security 4740 (Account Lockout), correlation | Medium | Test |
-| [`dcsync_replication_rights_abuse.yml`](rules/sigma/dcsync_replication_rights_abuse.yml) | [T1003.006 - DCSync](https://attack.mitre.org/techniques/T1003/006/) | Security 4662 (Directory Service Access) | Critical | Tuned (v1.1) |
-| [`lateral_movement_atexec_svchost_child.yml`](rules/sigma/lateral_movement_atexec_svchost_child.yml) | [T1053.002](https://attack.mitre.org/techniques/T1053/002/) / [T1569.002](https://attack.mitre.org/techniques/T1569/002/) | Sysmon EventID 1 (Process Creation) | Medium | Test |
+`scripts/build.sh` compiles every non-correlation rule with `sigma-cli`, using the Elasticsearch Lucene backend, the standard `ecs_windows` pipeline, and my own pipeline in [`pipelines/lab_winlogbeat.yml`](pipelines/lab_winlogbeat.yml).
 
-Each rule file carries the full detail (`falsepositives`, `references`, exact
-field logic) in its own frontmatter — this table is a navigation aid, not a
-substitute for reading the rule.
+I need the extra pipeline because `ecs_windows` maps some fields to names my Winlogbeat doesn't use. It turned `ServiceName` into `service.name` and `SubjectUserName` into `user.name`, but my events have them as `winlog.event_data.ServiceName` and `winlog.event_data.SubjectUserName`. I used to fix these by hand after compiling. Now the pipeline does it, so the build is repeatable.
 
-### Known gap - not covered here
+On every push and pull request, GitHub Actions:
 
-LLMNR/NBT-NS poisoning (T1557.001), the first technique run in this lab, has
-**no rule in this repo**. Sysmon Event ID 3 (Network Connection) and 22 (DNS
-Query) were found not to be firing on the Windows 10 endpoint despite the
-SwiftOnSecurity config, so the attack is currently invisible to host-based
-logging. Formalizing this detection is blocked on restoring that visibility
-(tracked separately as the network-visibility project). Writing a Sigma rule
-against telemetry that isn't actually flowing would just be theater.
+1. runs `sigma check` on every rule
+2. rebuilds the `.kql` files and fails if any committed file differs from what the Sigma source produces
 
-## Why some rules compile to `.kql` and others to `.kibana-rule.json`
+So a Sigma rule and its compiled query can't quietly drift apart.
 
-Sigma's Elasticsearch backend converts simple field-match logic straight to a
-Lucene/KQL query string. But two of these detections are Sigma **correlation
-rules** (count distinct failed-logon targets per source IP over a time
-window, count distinct lockouts per domain over a time window) - that logic
-can't be expressed as a single query string at all, in Sigma or in Kibana.
-Sigma's own `elasticsearch`/`lucene` backend confirms this directly:
+To run it locally:
+
+```bash
+pip install sigma-cli pySigma-backend-elasticsearch pysigma-pipeline-windows
+scripts/build.sh          # write the compiled files
+scripts/build.sh --check  # check for drift, as CI does
+```
+
+## Correlation rules
+
+Password spraying and account lockout burst are Sigma correlation rules: "count distinct usernames per source over a time window." That can't be written as a single query string, and the Elasticsearch backend refuses to compile them:
 
 ```
 Error: Feature required for conversion of Sigma rule is not supported by backend:
 Backend does not support correlation rules.
 ```
 
-The real compile target for those two is Kibana's native Threshold /
-Elasticsearch-query alerting rule type - the same rule type used to build the
-"DCSync Detected" alert earlier in this lab, just generated from the Sigma
-source this time instead of clicked together by hand in the UI. Those two
-rules ship as `.kibana-rule.json` instead of `.kql`.
+So I maintain those two as Kibana rule configs (`.kibana-rule.json`) by hand. The password spray config is the exact one that alerted in my lab, with its limitations listed in the file.
 
-## Validating compiled output against real field names
+## What the purple team re-test taught me
 
-The Sigma `ecs_windows` pipeline is a generic mapping and it does not always
-match what a given Winlogbeat version actually ships. Two fields needed manual
-correction after compiling and comparing against fields already validated live
-in Kibana earlier in this lab (`winlog.event_data.TicketEncryptionType`,
-`winlog.event_data.PreAuthType`):
+In September I wrote here that these rules were validated. What I'd really done was find the attack events with searches in Kibana. When I checked in November, only the DCSync rule had ever been deployed as an alerting rule, and it had never fired. Getting all four to alert changed three rules in this repo:
 
-- Kerberoasting rule: pipeline emitted `service.name`, corrected to
-  `winlog.event_data.ServiceName`.
-- DCSync rule: pipeline emitted `user.name`, corrected to
-  `winlog.event_data.SubjectUserName`.
+- **Kerberoasting:** I removed the `svc_sql` allow-list. It was the account being roasted, so the allow-list hid the attack. [Details](tuning/false_positive_scenarios.md#update-november-2026-allow-list-removed-v030).
+- **Password spraying:** I added event 4771. Kerbrute talks Kerberos directly, so a failed password shows up as 4771, never 4625. The old rule could not have caught it.
+- **DCSync:** I fixed two swapped GUID comments. The bigger lesson was in the deployed query: Sigma's `contains` compiles to a wildcard, which never matches a hyphenated GUID in a text field like `message`. See [`LAB-OVERRIDES.md`](rules/elastic/LAB-OVERRIDES.md).
 
-Lesson: never ship a compiled rule straight from the converter. Diff the
-field names against a known-good index pattern first.
+The full investigation, including the six lab problems I found and fixed, is in [Purple-Team-Automation](https://github.com/joshuagodwin7929/Purple-Team-Automation/blob/main/validation/detection-results.md).
 
 ## Tuning
 
-See [`tuning/false_positive_scenarios.md`](tuning/false_positive_scenarios.md)
-for the two deliberate false-positive exercises (a legitimate client hitting
-an RC4-only service account, and an AD auditing tool holding real replication
-rights) and the resulting rule refinements, tracked in
-[`CHANGELOG.md`](CHANGELOG.md).
+[`tuning/false_positive_scenarios.md`](tuning/false_positive_scenarios.md) covers two exercises where I created false positives on purpose: a legitimate client using an RC4-only service account, and an AD auditing tool with real replication rights. It also covers what I changed afterwards, including the Kerberoasting change I later reversed.
+
+## Known gap
+
+There's no rule here for LLMNR/NBT-NS poisoning (T1557.001), the first attack I ran in the lab. Sysmon Event IDs 3 (network connection) and 22 (DNS query) aren't firing on my Windows 10 endpoint, so the attack leaves nothing to detect. I'd rather leave the gap visible than write a rule against data that isn't arriving. Restoring that telemetry comes first.

@@ -9,8 +9,9 @@ description: |
     valid credentials and crack it offline (AS-REP Roasting).
 references:
     - https://attack.mitre.org/techniques/T1558/004/
-author: Detection Lab
+author: Okunnuwa Joshua Godwin
 date: 2026-09-12
+modified: 2026-11-26
 tags:
     - attack.credential-access
     - attack.t1558.004
@@ -21,10 +22,14 @@ logsource:
 detection:
     selection:
         EventID: 4768
-        PreAuthType: '0'
+        PreAuthType: 0
     condition: selection
 falsepositives:
     - Legitimate accounts intentionally configured without pre-auth for interoperability
       with older or third-party Kerberos clients (rare, should be inventoried and
       allow-listed by SamAccountName).
+    - Any normal Kerberos logon by an account that has DONT_REQ_PREAUTH set. In the
+      lab this rule also alerted when no AS-REP Roasting was running, most likely from
+      ordinary logons by the pre-auth-disabled account. The real fix is to require
+      pre-authentication on every account.
 level: high
