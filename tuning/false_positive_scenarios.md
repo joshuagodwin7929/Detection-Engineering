@@ -207,9 +207,10 @@ Added `SessionKeyEncryptionType: '0x17'` to the selection.
 
 Limits:
 
-- I tested this against recorded events in Discover. The alerting rule in
-  Kibana needs the same condition added and a fresh run before I can call it
-  validated as an alert.
+- Validated as a live alert: after adding the condition to the Kibana rule,
+  I ran the AS-REP ability from Caldera at 01:37:13 UTC on 26 Nov 2026. The DC
+  logged the 4768 at 01:37:48 (`j.jenkins`, from the Kali host, RC4 only,
+  session key `0x17`), and the tuned rule raised an alert at 01:42:07.
 - A tool that asks for AES would get past it. That's harder to crack, but not
   impossible with a weak password.
 - The real fix is still in the environment: require pre-authentication on

@@ -58,4 +58,5 @@
   were causing false positives; the attack tool requests RC4 only. Tested
   against recorded lab events: the attack still matches, the normal logons
   don't. A first attempt using `TicketEncryptionType` was rejected because it
-  also removed the attack. See tuning/false_positive_scenarios.md, Exercise 3.
+  also removed the attack. Validated as a live alert in Kibana on 26 Nov 2026
+  at 01:42:07 UTC. See tuning/false_positive_scenarios.md, Exercise 3.

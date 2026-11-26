@@ -13,7 +13,7 @@ Every rule here started as a hunt query I wrote after running the real technique
 | Rule | ATT&CK | Data source | Level | Lab validation |
 |---|---|---|---|---|
 | [`kerberoasting_rc4_tgs_request.yml`](rules/sigma/kerberoasting_rc4_tgs_request.yml) | [T1558.003](https://attack.mitre.org/techniques/T1558/003/) Kerberoasting | Security 4769 | High | ✅ Alert, 25 Nov 2026 |
-| [`asrep_roasting_no_preauth.yml`](rules/sigma/asrep_roasting_no_preauth.yml) | [T1558.004](https://attack.mitre.org/techniques/T1558/004/) AS-REP Roasting | Security 4768 | High | ✅ Alert, 25 Nov 2026 |
+| [`asrep_roasting_no_preauth.yml`](rules/sigma/asrep_roasting_no_preauth.yml) | [T1558.004](https://attack.mitre.org/techniques/T1558/004/) AS-REP Roasting | Security 4768 | High | ✅ Alert (tuned rule), 26 Nov 2026 |
 | [`password_spraying_distributed_failures.yml`](rules/sigma/password_spraying_distributed_failures.yml) | [T1110.003](https://attack.mitre.org/techniques/T1110/003/) Password Spraying | Security 4625, 4771 (correlation) | Medium | ✅ Alert, 25 Nov 2026 |
 | [`dcsync_replication_rights_abuse.yml`](rules/sigma/dcsync_replication_rights_abuse.yml) | [T1003.006](https://attack.mitre.org/techniques/T1003/006/) DCSync | Security 4662 | Critical | ✅ Alert, 25 Nov 2026 |
 | [`account_lockout_burst.yml`](rules/sigma/account_lockout_burst.yml) | [T1110.003](https://attack.mitre.org/techniques/T1110/003/) (supporting signal) | Security 4740 (correlation) | Medium | Not yet tested |
@@ -74,7 +74,7 @@ In September I wrote here that these rules were validated. What I'd really done 
 
 - **Kerberoasting:** I removed the `svc_sql` allow-list. It was the account being roasted, so the allow-list hid the attack. [Details](tuning/false_positive_scenarios.md#update-november-2026-allow-list-removed-v030).
 - **Password spraying:** I added event 4771. Kerbrute talks Kerberos directly, so a failed password shows up as 4771, never 4625. The old rule could not have caught it.
-- **AS-REP Roasting:** the rule also fired on normal logons by the pre-auth-disabled test account. My first fix (filtering on RC4 ticket encryption) would have hidden the attack too, so I rejected it. Filtering on the RC4 *session key* type keeps the attack and drops the noise. [Details](tuning/false_positive_scenarios.md#exercise-3---as-rep-roasting-rule-vs-normal-logons-by-the-same-account).
+- **AS-REP Roasting:** the rule also fired on normal logons by the pre-auth-disabled test account. My first fix (filtering on RC4 ticket encryption) would have hidden the attack too, so I rejected it. Filtering on the RC4 *session key* type keeps the attack and drops the noise, and the tuned rule raised a live alert. [Details](tuning/false_positive_scenarios.md#exercise-3---as-rep-roasting-rule-vs-normal-logons-by-the-same-account).
 - **DCSync:** I fixed two swapped GUID comments. The bigger lesson was in the deployed query: Sigma's `contains` compiles to a wildcard, which never matches a hyphenated GUID in a text field like `message`. See [`LAB-OVERRIDES.md`](rules/elastic/LAB-OVERRIDES.md).
 
 The full investigation, including the six lab problems I found and fixed, is in [Purple-Team-Automation](https://github.com/joshuagodwin7929/Purple-Team-Automation/blob/main/validation/detection-results.md).
