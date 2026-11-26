@@ -23,13 +23,21 @@ detection:
     selection:
         EventID: 4768
         PreAuthType: 0
+        # The attack tool asks the DC for RC4 only, so the part of the reply an
+        # attacker cracks offline is RC4-encrypted (0x17). A normal logon by the
+        # same pre-auth-disabled account negotiates AES (0x12). Tested against
+        # recorded lab events on 25 Nov 2026: see tuning/false_positive_scenarios.md,
+        # Exercise 3.
+        SessionKeyEncryptionType: '0x17'
     condition: selection
 falsepositives:
     - Legitimate accounts intentionally configured without pre-auth for interoperability
       with older or third-party Kerberos clients (rare, should be inventoried and
       allow-listed by SamAccountName).
-    - Any normal Kerberos logon by an account that has DONT_REQ_PREAUTH set. In the
-      lab this rule also alerted when no AS-REP Roasting was running, most likely from
-      ordinary logons by the pre-auth-disabled account. The real fix is to require
+    - Any tool that authenticates as a pre-auth-disabled account while requesting RC4
+      only. In the lab this includes Impacket logging in as that account for other
+      attacks (e.g. GetUserSPNs.py), which is attacker activity in its own right.
+    - Normal logons by a pre-auth-disabled account are filtered out by the
+      SessionKeyEncryptionType condition. The real fix is still to require
       pre-authentication on every account.
 level: high

@@ -32,4 +32,4 @@ This is a correlation rule, so there's no compiled query to compare against. The
 ## Rules that match
 
 - **Kerberoasting:** the deployed query is the compiled query without the `winlog.channel:Security` clause.
-- **AS-REP Roasting:** same as Kerberoasting.
+- **AS-REP Roasting:** the alert on 25 Nov 2026 came from the v0.3.0 rule, without the `SessionKeyEncryptionType` condition added in v0.3.1. The tuned query was tested against the recorded events in Discover, but the Kibana rule still needs updating to match.
